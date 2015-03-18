@@ -1,0 +1,103 @@
+<polymer-element name="pager-pages" attributes="current items-amount items-per-page href boundary-window-size current-window-size">
+  <template>
+  	<link rel="stylesheet" href="pager-pages.min.css">
+  	<ul class="pagination">
+		<li class="previous">
+			<template if="{{current == firstPage}}"><paper-button disabled><i></i></paper-button></template>
+			<template if="{{current != firstPage}}"><paper-button><a href="{{getLink(href, previous)}}"><i></i></a></paper-button></template>
+		</li>
+		<template repeat="{{page in pages}}">
+	        <li>
+	        	<template if="{{page == null}}"><paper-button class="hole" disabled>...</paper-button></template>
+	        	<template if="{{page != null}}">
+	        		<paper-button class="{{ {active: current == page} | tokenList}}" disabled?="{{current == page}}">
+	        			<template if="{{current != page}}"><a href="{{getLink(href, page)}}">{{page}}</a></template>
+	        			<template if="{{current == page}}"><span>{{page}}</span></template>
+	        		</paper-button>
+	        	</template>
+			</li>
+	    </template>
+		<li class="next">
+			<template if="{{current == lastPage}}"><paper-button disabled><i></i></paper-button></template>
+			<template if="{{current != lastPage}}"><paper-button><a href="{{getLink(href, next)}}"><i></i></a></paper-button></template>
+		</li>
+	</ul>
+  </template>
+  <script>
+    PolymerExpressions.prototype.getLink = function(href, page) {return href ? href.replace(/(\?\w*=)\d*/gi, "$1" + page) : "";};
+    Polymer({
+      ready: function() {
+   	    var Pager = function(currentPage, amount, itemsPerPage, boundaryWindowSize, currentWindowSize) {
+   		  this.currentPage = parseInt(currentPage) || 1;
+   		  this.itemsPerPage = parseInt(itemsPerPage);
+   		  this.amount = parseInt(amount);
+   		  this.boundaryWindowSize = parseInt(boundaryWindowSize) || 0; // minimal number of pages to display at boundaries
+   		  this.currentWindowSize = parseInt(currentWindowSize) || 1; // minimal number of pages to display around current page
+   	    };
+   	    Pager.prototype.getFirstPage = function() {
+   		  return 1;
+   	    };
+   	    Pager.prototype.getLastPage = function() {
+   		  if(!this.itemsPerPage)
+   		    return 1;
+   		  else {
+   		    return Math.max(Math.ceil(this.amount / this.itemsPerPage), 1);
+   		  }
+   	    };
+   	    Pager.prototype.getNextPage = function() {
+   		  return Math.min(this.getLastPage(), this.currentPage + 1);
+   	    };
+   	    Pager.prototype.getPreviousPage = function() {
+   		  return Math.max(this.getFirstPage(), this.currentPage - 1);
+   	    };
+   	    Pager.prototype.isNeeded = function() {
+   		  return this.getLastPage() > 1;
+   	    };
+   	    Pager.prototype.displayedPages = function() {
+   		  var currentRange = {start: this.currentPage - this.currentWindowSize, end: this.currentPage + this.currentWindowSize};
+   		  var startRange = {start: this.getFirstPage(), end: this.getFirstPage() + this.boundaryWindowSize};
+   		  var endRange = {start: this.getLastPage() - this.boundaryWindowSize, end: this.getLastPage()};
+   		  
+   		  var toAddToEnd = currentRange.start <= startRange.end + 1 ? startRange.end - currentRange.start + 2 : 0;
+   		  var toAddToStart = currentRange.end >= endRange.start - 1 ? currentRange.end - endRange.start + 2 : 0;
+   		  var rectifiedRange = {start: currentRange.start - toAddToStart, end: currentRange.end + toAddToEnd};
+   		  
+   		  var toAddToStartForRangeSeparator = rectifiedRange.start == startRange.end + 2 ? 1 : 0;
+   		  var toAddToEndForRangeSeparator = rectifiedRange.end == endRange.start - 2 ? 1 : 0;
+   		  var finalRange = {start: rectifiedRange.start - toAddToStartForRangeSeparator, end: rectifiedRange.end + toAddToEndForRangeSeparator};
+   		  
+   		  var isInRange = function(page, range) {
+   			  return page >= range.start && page <= range.end;
+   		  };
+   		  var result = [];
+   		  var index = 0;
+   		  for(var i = startRange.start; i <= endRange.end; i++) {
+   			  if(isInRange(i, startRange))
+   				  result[index++] = i;
+   			  else if(isInRange(i, finalRange))
+   				  result[index++] = i;
+   			  else if(isInRange(i, endRange))
+   				  result[index++] = i;
+   			  else if(index > 0 && result[index-1])
+   				  result[index++] = null;
+   		  }
+   		  return result;
+   	    };
+        
+		var current = this.attributes.getNamedItem("current").value
+		var amount = this.attributes.getNamedItem("items-amount").value
+		var itemsPerPage = this.attributes.getNamedItem("items-per-page").value
+		var boundaryWindowSizeAttr = this.attributes.getNamedItem("boundary-window-size")
+		var currentWindowSizeAttr = this.attributes.getNamedItem("current-window-size")
+		var pager = new Pager(current, amount, itemsPerPage, boundaryWindowSizeAttr ? boundaryWindowSizeAttr.value : undefined, 
+				currentWindowSizeAttr ? currentWindowSizeAttr.value : undefined);
+		this.href = this.attributes.getNamedItem("href").value
+		this.previous = pager.getPreviousPage();
+		this.next = pager.getNextPage();
+		this.pages = pager.displayedPages();
+		this.firstPage = pager.getFirstPage();
+		this.lastPage = pager.getLastPage();
+      }
+    });
+  </script>
+</polymer-element>
